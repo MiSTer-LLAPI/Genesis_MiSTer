@@ -125,9 +125,8 @@ module emu
 );
 
 assign ADC_BUS  = 'Z;
-assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
-assign BUTTONS   = 0;
+assign BUTTONS   = llapi_osd;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE, SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS, SDRAM_nRAS, SDRAM_nCS} = 'Z;
 
@@ -206,6 +205,8 @@ localparam CONF_STR = {
 	"OPQ,CPU Turbo,None,Medium,High;",
 	"OR,Sprite Limit,Normal,High;",
 	"-;",
+	"OV,Serial Mode,None,LLAPI;",
+	"-;",
 `ifdef SOUND_DBG
 	"OB,Enable FM,Yes,No;",
 	"OC,Enable PSG,Yes,No;",
@@ -214,7 +215,7 @@ localparam CONF_STR = {
 	"J1,A,B,C,Start,Mode,X,Y,Z;",
 	"V,v",`BUILD_DATE
 };
-// free: V [B C]
+// free: [B C]
 
 wire [15:0] status_menumask = {~status[8],~gg_available,~bk_ena};
 wire [31:0] status;
@@ -333,6 +334,88 @@ always_ff @(posedge clk_sys) begin
 	end
 end
 
+//////////////////   LLAPI   ///////////////////
+
+wire [31:0] llapi_buttons, llapi_buttons2;
+wire [71:0] llapi_analog, llapi_analog2;
+wire [7:0]  llapi_type, llapi_type2;
+wire llapi_en, llapi_en2;
+
+wire llapi_select = status[31];
+
+wire llapi_latch_o, llapi_latch_o2, llapi_data_o, llapi_data_o2;
+
+always_comb begin
+	USER_OUT = 6'b111111;
+	if (llapi_select) begin
+		USER_OUT[0] = llapi_latch_o;
+		USER_OUT[1] = llapi_data_o;
+		USER_OUT[2] = ~(llapi_select & ~OSD_STATUS);
+		USER_OUT[4] = llapi_latch_o2;
+		USER_OUT[5] = llapi_data_o2;
+	end
+end
+
+LLAPI llapi
+(
+	.CLK_50M(CLK_50M),
+	.LLAPI_SYNC(vblank),
+	.IO_LATCH_IN(USER_IN[0]),
+	.IO_LATCH_OUT(llapi_latch_o),
+	.IO_DATA_IN(USER_IN[1]),
+	.IO_DATA_OUT(llapi_data_o),
+	.ENABLE(llapi_select & ~OSD_STATUS),
+	.LLAPI_BUTTONS(llapi_buttons),
+	.LLAPI_ANALOG(llapi_analog),
+	.LLAPI_TYPE(llapi_type),
+	.LLAPI_EN(llapi_en)
+);
+
+LLAPI llapi2
+(
+	.CLK_50M(CLK_50M),
+	.LLAPI_SYNC(vblank),
+	.IO_LATCH_IN(USER_IN[4]),
+	.IO_LATCH_OUT(llapi_latch_o2),
+	.IO_DATA_IN(USER_IN[5]),
+	.IO_DATA_OUT(llapi_data_o2),
+	.ENABLE(llapi_select & ~OSD_STATUS),
+	.LLAPI_BUTTONS(llapi_buttons2),
+	.LLAPI_ANALOG(llapi_analog2),
+	.LLAPI_TYPE(llapi_type2),
+	.LLAPI_EN(llapi_en2)
+);
+
+wire use_llapi = llapi_en && llapi_select;
+wire use_llapi2 = llapi_en2 && llapi_select;
+
+// Indexes:
+// 0 = D+    = P1 Latch
+// 1 = D-    = P1 Data
+// 2 = TX-   = LLAPI Enable
+// 3 = GND_d = N/C
+// 4 = RX+   = P2 Latch
+// 5 = RX-   = P2 Data
+
+wire [11:0] joy_ll_a = {
+	llapi_buttons[6], llapi_buttons[2], llapi_buttons[3], // Z, Y, X
+	llapi_buttons[4], llapi_buttons[5], // Mode, Start
+	llapi_buttons[7], llapi_buttons[1], llapi_buttons[0], // C, B, A
+	llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
+};
+
+wire [11:0] joy_ll_b = {
+	llapi_buttons2[6], llapi_buttons2[2], llapi_buttons2[3], // Z, Y, X
+	llapi_buttons2[4], llapi_buttons2[5], // Mode, Start
+	llapi_buttons2[7], llapi_buttons2[1], llapi_buttons2[0], // C, B, A
+	llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
+};
+
+wire llapi_osd = (llapi_buttons[4] & llapi_buttons[5]) || (llapi_buttons2[4] & llapi_buttons2[5]);
+
+wire [11:0] joy_a = use_llapi  ? joy_ll_a : joystick_0;
+wire [11:0] joy_b = use_llapi2 ? joy_ll_b : joystick_1;
+
 ///////////////////////////////////////////////////
 wire [3:0] r, g, b;
 wire vs,hs;
@@ -392,8 +475,8 @@ system system
 	.GG_AVAILABLE(gg_available),
 
 	.J3BUT(~status[5]),
-	.JOY_1(status[4] ? joystick_1 : joystick_0),
-	.JOY_2(status[4] ? joystick_0 : joystick_1),
+	.JOY_1(status[4] ? joy_b : joy_a),
+	.JOY_2(status[4] ? joy_a : joy_b),
 	.JOY_3(joystick_2),
 	.JOY_4(joystick_3),
 	.MULTITAP(status[22:21]),
