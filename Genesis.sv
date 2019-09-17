@@ -400,7 +400,7 @@ wire use_llapi2 = llapi_en2 && llapi_select;
 wire [11:0] joy_ll_a;
 always_comb begin
 	// button layout for 6 button controllers
-	if (use_llapi && (llapi_type == 20 || llapi_type == 21 || llapi_type == 8 || llapi_type == 3 || llapi_type == 54 || llapi_type == 11)) begin
+	if (llapi_type == 20 || llapi_type == 21 || llapi_type == 8 || llapi_type == 3 || llapi_type == 54 || llapi_type == 11) begin
 		joy_ll_a = {
 			llapi_buttons[6], llapi_buttons[3], llapi_buttons[2], // Z, Y, X
 			llapi_buttons[4], llapi_buttons[5], // Mode, Start
@@ -420,7 +420,7 @@ end
 wire [11:0] joy_ll_b;
 always_comb begin
 	// button layout for 6 button controllers
-	if (use_llapi2 && (llapi_type2 == 20 || llapi_type2 == 21 || llapi_type2 == 8 || llapi_type2 == 3 || llapi_type2 == 54 || llapi_type2 == 11)) begin
+	if (llapi_type2 == 20 || llapi_type2 == 21 || llapi_type2 == 8 || llapi_type2 == 3 || llapi_type2 == 54 || llapi_type2 == 11) begin
 		joy_ll_b = {
 			llapi_buttons2[6], llapi_buttons2[3], llapi_buttons2[2], // Z, Y, X
 			llapi_buttons2[4], llapi_buttons2[5], // Mode, Start
