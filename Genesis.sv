@@ -439,8 +439,26 @@ end
 
 wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
 
-wire [11:0] joy_a = use_llapi  ? joy_ll_a : joystick_0;
-wire [11:0] joy_b = use_llapi2 ? joy_ll_b : joystick_1;
+// if LLAPI is enabled, shift USB controllers over to the next available player slot
+wire [11:0] joy_0, joy_1, joy_2, joy_3;
+always_comb begin
+        if (use_llapi & use_llapi2) begin
+                joy_0 = joy_ll_a;
+                joy_1 = joy_ll_b;
+                joy_2 = joystick_0;
+                joy_3 = joystick_1;
+        end else if (use_llapi ^ use_llapi2) begin
+                joy_0 = use_llapi  ? joy_ll_a : joystick_0;
+                joy_1 = use_llapi2 ? joy_ll_b : joystick_0;
+                joy_2 = joystick_1;
+                joy_3 = joystick_2;
+        end else begin
+                joy_0 = joystick_0;
+                joy_1 = joystick_1;
+                joy_2 = joystick_2;
+                joy_3 = joystick_3;
+        end
+end
 
 ///////////////////////////////////////////////////
 wire [3:0] r, g, b;
@@ -500,10 +518,10 @@ system system
 	.GG_AVAILABLE(gg_available),
 
 	.J3BUT(~status[5]),
-	.JOY_1(status[4] ? joy_b : joy_a),
-	.JOY_2(status[4] ? joy_a : joy_b),
-	.JOY_3(joystick_2),
-	.JOY_4(joystick_3),
+	.JOY_1(status[4] ? joy_1 : joy_0),
+	.JOY_2(status[4] ? joy_0 : joy_1),
+	.JOY_3(joy_2),
+	.JOY_4(joy_3),
 	.MULTITAP(status[22:21]),
 
 	.MOUSE(ps2_mouse),
