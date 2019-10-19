@@ -250,6 +250,8 @@ wire        forced_scandoubler;
 wire [10:0] ps2_key;
 wire [24:0] ps2_mouse;
 
+wire [21:0] gamma_bus;
+
 hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -288,6 +290,8 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.img_mounted(img_mounted),
 	.img_readonly(img_readonly),
 	.img_size(img_size),
+
+	.gamma_bus(gamma_bus),
 
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse)
@@ -636,11 +640,11 @@ cofi coffee (
 	.blue_out(blue)
 );
 
-video_mixer #(.LINE_LENGTH(320), .HALF_DEPTH(0)) video_mixer
+video_mixer #(.LINE_LENGTH(320), .HALF_DEPTH(0), .GAMMA(1)) video_mixer
 (
 	.*,
 
-	.clk_sys(CLK_VIDEO),
+	.clk_vid(CLK_VIDEO),
 	.ce_pix(~old_ce_pix & ce_pix),
 	.ce_pix_out(CE_PIXEL),
 
