@@ -54,6 +54,18 @@ module multitap
 
 	input [24:0] MOUSE,
 	input  [2:0] MOUSE_OPT,
+	
+	input        GUN_OPT,
+	input        GUN_TYPE,
+	input        GUN_SENSOR,
+	input        GUN_A,
+	input        GUN_B,
+	input        GUN_C,
+	input        GUN_START,
+
+	input  [7:0] SERJOYSTICK_IN,
+	output [7:0] SERJOYSTICK_OUT,
+	input  [1:0] SER_OPT,
 
 	input        PAL,
 	input        EXPORT,
@@ -64,6 +76,8 @@ module multitap
 	input  [7:0] DI,
 	output [7:0] DO,
 	output       DTACK_N,
+
+	output       HL,
 
 	input        JCART_SEL,
 	output[15:0] JCART_DO,

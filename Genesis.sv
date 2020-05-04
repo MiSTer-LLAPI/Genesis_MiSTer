@@ -169,14 +169,12 @@ assign LED_POWER = 0;
 assign LED_USER  = cart_download | sav_pending;
 
 
-`define SOUND_DBG
-
 // Status Bit Map:
 //             Upper                             Lower              
 // 0         1         2         3          4         5         6   
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXX  XXXXXXXXX XXXXXXXX                          
+// XXXXXXXXXXXX XXXXXXXXXXXXXXXXXXX XX XXXXXXXXXX XXXX             
 
 `include "build_id.v"
 localparam CONF_STR = {
@@ -198,7 +196,7 @@ localparam CONF_STR = {
 	"OU,320x224 Aspect,Original,Corrected;",
 	"O13,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
 	"OT,Border,No,Yes;",
-	"o2,Composite Blending,Off,On;",
+	"oEF,Composite Blend,Off,On,Adaptive;",
 	"-;",
 	"OEF,Audio Filter,Model 1,Model 2,Minimal,No Filter;",
 	"OB,FM Chip,YM2612,YM3438;",
@@ -209,13 +207,16 @@ localparam CONF_STR = {
 	"o57,Multitap,Disabled,4-Way,TeamPlayer: Port1,TeamPlayer: Port2,J-Cart;",
 	"OIJ,Mouse,None,Port1,Port2;",
 	"OK,Mouse Flip Y,No,Yes;",
+	"oGH,Serial,OFF,SNAC,LLAPI;",
+	"-;",
+	"o89,Gun Control,Disabled,Joy1,Joy2,Mouse;",
+	"H4oA,Gun Fire,Joy,Mouse;",
+	"H4oBC,Cross,Small,Medium,Big,None;",
 	"-;",
 	"o34,ROM Storage,Auto,SDRAM,DDR3;",
 	"-;",
 	"OPQ,CPU Turbo,None,Medium,High;",
 	"OV,Sprite Limit,Normal,High;",
-	"-;",
-	"OC,Serial Mode,None,LLAPI;",
 	"-;",
 	"H3o0,Enable FM,Yes,No;",
 	"H3o1,Enable PSG,Yes,No;",
@@ -230,6 +231,7 @@ localparam CONF_STR = {
 wire [63:0] status;
 wire  [1:0] buttons;
 wire [11:0] joystick_0,joystick_1,joystick_2,joystick_3,joystick_4;
+wire  [7:0] joy0_x,joy0_y,joy1_x,joy1_y;
 wire        ioctl_download;
 wire        ioctl_wr;
 wire [24:0] ioctl_addr;
@@ -268,6 +270,9 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.joystick_2(joystick_2),
 	.joystick_3(joystick_3),
 	.joystick_4(joystick_4),
+	.joystick_analog_0({joy0_y, joy0_x}),
+	.joystick_analog_1({joy1_y, joy1_x}),
+
 	.buttons(buttons),
 	.forced_scandoubler(forced_scandoubler),
 	.new_vmode(new_vmode),
@@ -275,7 +280,7 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.status(status),
 	.status_in({status[63:8],region_req,status[5:0]}),
 	.status_set(region_set),
-	.status_menumask({~dbg_menu,~status[8],~gg_available,~bk_ena}),
+	.status_menumask({!gun_mode,~dbg_menu,~status[8],~gg_available,~bk_ena}),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
@@ -302,6 +307,9 @@ hps_io #(.STRLEN($size(CONF_STR)>>3), .WIDE(1)) hps_io
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse)
 );
+
+wire [1:0] gun_mode = status[41:40];
+wire       gun_btn_mode = status[42];
 
 wire code_index = &ioctl_index;
 wire cart_download = ioctl_download & ~code_index;
@@ -376,20 +384,9 @@ wire [71:0] llapi_analog, llapi_analog2;
 wire [7:0]  llapi_type, llapi_type2;
 wire llapi_en, llapi_en2;
 
-wire llapi_select = status[12];
+wire llapi_select = status[49];
 
 wire llapi_latch_o, llapi_latch_o2, llapi_data_o, llapi_data_o2;
-
-always_comb begin
-	USER_OUT = 6'b111111;
-	if (llapi_select) begin
-		USER_OUT[0] = llapi_latch_o;
-		USER_OUT[1] = llapi_data_o;
-		USER_OUT[2] = ~(llapi_select & ~OSD_STATUS);
-		USER_OUT[4] = llapi_latch_o2;
-		USER_OUT[5] = llapi_data_o2;
-	end
-end
 
 LLAPI llapi
 (
@@ -581,6 +578,18 @@ system system
 
 	.MOUSE(ps2_mouse),
 	.MOUSE_OPT(status[20:18]),
+	
+	.GUN_OPT(|gun_mode),
+	.GUN_TYPE(gun_type),
+	.GUN_SENSOR(lg_sensor),
+	.GUN_A(lg_a),
+	.GUN_B(lg_b),
+	.GUN_C(lg_c),
+	.GUN_START(lg_start),
+
+	.SERJOYSTICK_IN(SERJOYSTICK_IN),
+	.SERJOYSTICK_OUT(SERJOYSTICK_OUT),
+	.SER_OPT(SER_OPT),
 
 	.ENABLE_FM(~dbg_menu | ~status[32]),
 	.ENABLE_PSG(~dbg_menu | ~status[33]),
@@ -608,8 +617,13 @@ system system
 	.ROM_ADDR2(rom_addr2),
 	.ROM_DATA2(rom_data2),
 	.ROM_REQ2(rom_rd2),
-	.ROM_ACK2(rom_rdack2) 
+	.ROM_ACK2(rom_rdack2),
+
+	.TRANSP_DETECT(TRANSP_DETECT)
 );
+
+wire TRANSP_DETECT;
+wire cofi_enable = status[46] || (status[47] && TRANSP_DETECT);
 
 wire PAL = status[7];
 
@@ -672,7 +686,7 @@ wire [7:0] red, green, blue;
 cofi coffee (
 	.clk(clk_sys),
 	.pix_ce(ce_pix),
-	.enable(status[34]),
+	.enable(cofi_enable),
 
 	.hblank(hblank),
 	.vblank(vblank),
@@ -707,15 +721,53 @@ video_mixer #(.LINE_LENGTH(320), .HALF_DEPTH(0), .GAMMA(1)) video_mixer
 
 	.mono(0),
 
-	.R(red),
-	.G(green),
-	.B(blue),
+	.R((lg_target && gun_mode && (~&status[44:43])) ? {8{lg_target[0]}} : red),
+	.G((lg_target && gun_mode && (~&status[44:43])) ? {8{lg_target[1]}} : green),
+	.B((lg_target && gun_mode && (~&status[44:43])) ? {8{lg_target[2]}} : blue),
 
 	// Positive pulses.
 	.HSync(hs_c),
 	.VSync(vs_c),
 	.HBlank(hblank_c),
 	.VBlank(vblank_c)
+);
+
+wire [2:0] lg_target;
+wire       lg_sensor;
+wire       lg_a;
+wire       lg_b;
+wire       lg_c;
+wire       lg_start;
+
+lightgun lightgun
+(
+	.CLK(clk_sys),
+	.RESET(reset),
+
+	.MOUSE(ps2_mouse),
+	.MOUSE_XY(&gun_mode),
+
+	.JOY_X(gun_mode[0] ? joy0_x : joy1_x),
+	.JOY_Y(gun_mode[0] ? joy0_y : joy1_y),
+	.JOY(gun_mode[0] ? joystick_0 : joystick_1),
+
+	.RELOAD(gun_type),
+
+	.HDE(~hblank_c),
+	.VDE(~vblank_c),
+	.CE_PIX(ce_pix),
+	.H40(res[0]),
+
+	.BTN_MODE(gun_btn_mode),
+	.SIZE(status[44:43]),
+	.SENSOR_DELAY(gun_sensor_delay),
+
+	.TARGET(lg_target),
+	.SENSOR(lg_sensor),
+	.BTN_A(lg_a),
+	.BTN_B(lg_b),
+	.BTN_C(lg_c),
+	.BTN_START(lg_start)
 );
 
 ///////////////////////////////////////////////////
@@ -884,6 +936,8 @@ reg pier_quirk = 0;
 reg svp_quirk = 0;
 reg fmbusy_quirk = 0;
 reg schan_quirk = 0;
+reg gun_type = 0;
+reg [7:0] gun_sensor_delay = 8'd44;
 always @(posedge clk_sys) begin
 	reg [63:0] cart_id;
 	reg old_download;
@@ -922,6 +976,32 @@ always @(posedge clk_sys) begin
 			else if(cart_id == "T-25073 ") fmbusy_quirk <= 1; // Hellfire JP
 			else if(cart_id == "MK-1137-") fmbusy_quirk <= 1; // Hellfire EU
 			else if(cart_id == "T-68???-") schan_quirk  <= 1; // Game no Kanzume Otokuyou
+			
+			// Lightgun device and timing offsets
+			if(cart_id == "MK-1533 ") begin						  // Body Count
+				gun_type  <= 0;
+				gun_sensor_delay <= 8'd100;
+			end
+			else if(cart_id == "T-95096-") begin				  // Lethal Enforcers
+				gun_type  <= 1;
+				gun_sensor_delay <= 8'd52;
+			end
+			else if(cart_id == "T-95136-") begin				  // Lethal Enforcers II
+				gun_type  <= 1;
+				gun_sensor_delay <= 8'd30;
+			end
+			else if(cart_id == "MK-1658 ") begin				  // Menacer 6-in-1
+				gun_type  <= 0;
+				gun_sensor_delay <= 8'd120;
+			end
+			else if(cart_id == "T-081156") begin				  // T2: The Arcade Game
+				gun_type  <= 0;
+				gun_sensor_delay <= 8'd126;
+			end
+			else begin
+				gun_type  <= 0;
+				gun_sensor_delay <= 8'd44;
+			end
 		end
 	end
 end
@@ -996,5 +1076,39 @@ always @(posedge clk_sys) begin
 	end
 end
 
+wire [7:0] SERJOYSTICK_IN;
+wire [7:0] SERJOYSTICK_OUT;
+wire [1:0] SER_OPT;
+
+always @(posedge clk_sys) begin
+	if (status[48]) begin
+		SERJOYSTICK_IN[0] <= USER_IN[1];//up
+		SERJOYSTICK_IN[1] <= USER_IN[0];//down	
+		SERJOYSTICK_IN[2] <= USER_IN[5];//left	
+		SERJOYSTICK_IN[3] <= USER_IN[3];//right
+		SERJOYSTICK_IN[4] <= USER_IN[2];//b TL		
+		SERJOYSTICK_IN[5] <= USER_IN[6];//c TR GPIO7			
+		SERJOYSTICK_IN[6] <= USER_IN[4];//  TH
+		SERJOYSTICK_IN[7] <= 0;
+		SER_OPT[0] <= status[4];
+		SER_OPT[1] <= ~status[4];
+		USER_OUT[1] <= SERJOYSTICK_OUT[0];
+		USER_OUT[0] <= SERJOYSTICK_OUT[1];
+		USER_OUT[5] <= SERJOYSTICK_OUT[2];
+		USER_OUT[3] <= SERJOYSTICK_OUT[3];
+		USER_OUT[2] <= SERJOYSTICK_OUT[4];
+		USER_OUT[6] <= SERJOYSTICK_OUT[5];
+		USER_OUT[4] <= SERJOYSTICK_OUT[6];
+	end else if (llapi_select) begin
+		USER_OUT[0] = llapi_latch_o;
+		USER_OUT[1] = llapi_data_o;
+		USER_OUT[2] = ~(llapi_select & ~OSD_STATUS);
+		USER_OUT[4] = llapi_latch_o2;
+		USER_OUT[5] = llapi_data_o2;
+	end else begin
+		SER_OPT  <= 0;
+		USER_OUT <= '1;
+	end
+end
 
 endmodule
