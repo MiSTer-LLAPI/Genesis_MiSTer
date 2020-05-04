@@ -491,7 +491,7 @@ end
 wire llapi_osd = (llapi_buttons[26] & llapi_buttons[5] & llapi_buttons[0]) || (llapi_buttons2[26] & llapi_buttons2[5] & llapi_buttons2[0]);
 
 // if LLAPI is enabled, shift USB controllers over to the next available player slot
-wire [11:0] joy_0, joy_1, joy_2, joy_3;
+wire [11:0] joy_0, joy_1, joy_2, joy_3, joy_4;
 always_comb begin
         if (use_llapi & use_llapi2) begin
                 joy_0 = joy_ll_a;
