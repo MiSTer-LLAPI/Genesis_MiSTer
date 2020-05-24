@@ -1105,6 +1105,7 @@ always @(posedge clk_sys) begin
 		USER_OUT[2] = ~(llapi_select & ~OSD_STATUS);
 		USER_OUT[4] = llapi_latch_o2;
 		USER_OUT[5] = llapi_data_o2;
+		SER_OPT  <= 0;
 	end else begin
 		SER_OPT  <= 0;
 		USER_OUT <= '1;
