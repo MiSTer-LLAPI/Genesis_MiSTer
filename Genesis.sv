@@ -470,7 +470,7 @@ always_comb begin
 		};
 	end else begin
 		joy_ll_a = {
-			llapi_buttons[6], llapi_buttons[3], llapi_buttons[7], // Z, Y, X
+			llapi_buttons[7], llapi_buttons[3], llapi_buttons[6], // Z, Y, X
 			llapi_buttons[4], llapi_buttons[5], // Mode, Start
 			llapi_buttons[1], llapi_buttons[0], llapi_buttons[2], // C, B, A
 			llapi_buttons[27], llapi_buttons[26], llapi_buttons[25], llapi_buttons[24] // d-pad
@@ -490,7 +490,7 @@ always_comb begin
 		};
 	end else begin
 		joy_ll_b = {
-			llapi_buttons2[6], llapi_buttons2[3], llapi_buttons2[7], // Z, Y, X
+			llapi_buttons2[7], llapi_buttons2[3], llapi_buttons2[6], // Z, Y, X
 			llapi_buttons2[4], llapi_buttons2[5], // Mode, Start
 			llapi_buttons2[1], llapi_buttons2[0], llapi_buttons2[2], // C, B, A
 			llapi_buttons2[27], llapi_buttons2[26], llapi_buttons2[25], llapi_buttons2[24] // d-pad
