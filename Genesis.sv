@@ -587,11 +587,11 @@ system system
 	.GG_AVAILABLE(gg_available),
 
 	.J3BUT(~status[5]),
-	.JOY_1(status[4] ^ status[45] ? joystick_1 : joystick_0),
-	.JOY_2(status[4] ^ status[45] ? joystick_0 : joystick_1),
-	.JOY_3(joystick_2),
-	.JOY_4(joystick_3),
-	.JOY_5(joystick_4),
+	.JOY_1(status[4] ^ status[45] ? joy_1 : joy_0),
+	.JOY_2(status[4] ^ status[45] ? joy_0 : joy_1),
+	.JOY_3(joy_2),
+	.JOY_4(joy_3),
+	.JOY_5(joy_4),
 	.MULTITAP(status[39:37]),
 
 	.MOUSE(ps2_mouse),
